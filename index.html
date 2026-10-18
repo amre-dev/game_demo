@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Game Fast Card</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="config.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+    <link rel="stylesheet" href="store.css" />
+</head>
+<body>
+
+<!-- أيقونات الفسيفساء -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mzi-pad" viewBox="0 0 24 24"><path d="M7 8h10a5 5 0 0 1 5 5v1a3 3 0 0 1-5.2 2L15 14H9l-1.8 2A3 3 0 0 1 2 14v-1a5 5 0 0 1 5-5z"/><path d="M7 11v3M5.5 12.5h3M16 12h.01M18 13.5h.01"/></symbol>
+  <symbol id="mzi-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+</svg>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<div class="side-drawer-backdrop" id="drawerBackdrop">
+  <div class="side-drawer">
+    <div>
+      <div class="side-drawer-header">القائمة الرئيسية</div>
+      <div style="margin-top:12px;">
+        <div class="side-drawer-section-title">الحساب</div>
+        <div id="drawerLoggedOut">
+          <div class="side-drawer-buttons">
+            <button class="btn btn-primary" id="btnOpenLogin">تسجيل الدخول</button>
+            <button class="btn btn-outline" id="btnOpenRegister">إنشاء حساب</button>
+          </div>
+        </div>
+        <div id="drawerLoggedIn" style="display:none;">
+          <div class="user-info-row">
+            <div class="user-avatar" id="drawerUserAvatar"></div>
+            <div class="user-meta">
+              <div class="user-name" id="drawerUsername"></div>
+              <div class="user-balance" id="drawerBalance"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="btnOpenDeposit"><i data-lucide="credit-card" style="width:14px;height:14px;vertical-align:middle;margin-left:5px;"></i> شحن الرصيد</button>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="side-drawer-section-title">روابط</div>
+        <div class="drawer-links">
+          <div class="drawer-link" id="linkHome"><i data-lucide="home" style="width:15px;height:15px;vertical-align:middle;margin-left:6px;"></i> الرئيسية</div>
+          <div class="drawer-link" id="linkPurchases"><i data-lucide="shopping-bag" style="width:15px;height:15px;vertical-align:middle;margin-left:6px;"></i> سجل المشتريات</div>
+          <div class="drawer-link" id="linkSupport"><i data-lucide="headphones" style="width:15px;height:15px;vertical-align:middle;margin-left:6px;"></i> الدعم الفني</div>
+        </div>
+      </div>
+    </div>
+    <button class="logout-btn" id="btnLogout" style="display:none;"><i data-lucide="log-out" style="width:14px;height:14px;vertical-align:middle;margin-left:5px;"></i> تسجيل الخروج</button>
+  </div>
+</div>
+
+<div class="app-frame">
+  <header class="app-header">
+    <button class="header-menu-btn" id="btnDrawerToggle">
+      <i data-lucide="menu" style="width:18px;height:18px;"></i>
+    </button>
+    <div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);">
+      <button id="btnNotif" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-primary);position:relative;">
+        <i data-lucide="bell" style="width:18px;height:18px;"></i>
+        <span class="notif-badge" id="notifBadge"></span>
+      </button>
+    </div>
+    <div class="header-logo">
+      <div class="header-logo-icon">
+        <img id="storeLogo" src="" alt="GFC" style="width:100%;height:100%;object-fit:contain;border-radius:10px;display:none;">
+        <span id="storeLogoFallback" style="font-size:13px;font-weight:900;letter-spacing:-0.5px;">GFC</span>
+      </div>
+      <div class="header-logo-text">
+        <span class="main-name">Game Fast Card</span>
+        <span class="sub-name">GAMING STORE</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-header">
+    <span>🔔 الإشعارات</span>
+    <button class="notif-clear-btn" id="btnClearNotif">مسح الكل</button>
+  </div>
+  <div id="notifList"></div>
+</div>
+
+<!-- IN-APP POPUP -->
+<div class="inapp-notif" id="inappNotif">
+  <div class="inapp-notif-icon" id="inappIcon" style="font-size:22px;"></div>
+  <div class="inapp-notif-body">
+    <div class="inapp-notif-title" id="inappTitle"></div>
+    <div class="inapp-notif-sub" id="inappSub"></div>
+  </div>
+  <button class="inapp-notif-close" id="inappClose">✕</button>
+</div>
+
+<div class="user-profile-card">
+    <div class="upc-left">
+      <div class="upc-avatar"><i data-lucide="user" style="width:22px;height:22px;color:var(--text-secondary);"></i></div>
+      <div class="upc-info">
+        <div class="upc-username" id="upcUsername">USERNAME</div>
+        <div class="upc-id" id="upcId">ID: —</div>
+        <div class="upc-id" id="upcPhone" style="color:var(--accent2);"></div>
+        <div class="upc-status">نشط Active</div>
+        <div id="upcVipWrap" style="margin-top:3px;"></div>
+      </div>
+    </div>
+    <div class="upc-right">
+      <div style="margin-bottom:6px;display:flex;gap:4px;" id="currencySelector">
+        <button class="currency-toggle" id="btnCurSYP_profile" onclick="setDefaultCurrency('SYP')">ل.س</button>
+        <button class="currency-toggle" id="btnCurUSD_profile" onclick="setDefaultCurrency('USD')">$</button>
+      </div>
+      <div id="upcBalanceBlock" style="display:none;flex-direction:column;align-items:flex-end;gap:3px;">
+        <div class="bal-label">رصيد SYP</div>
+        <div class="bal-syp" id="upcBalSYP">—</div>
+        <div class="bal-label" style="margin-top:3px;">رصيد USD</div>
+        <div class="bal-usd" id="upcBalUSD">—</div>
+      </div>
+      <div id="upcBalGuest" style="font-size:14px;color:var(--text-muted);">—</div>
+    </div>
+  </div>
+
+  <main class="app-content">
+    <div class="search-wrapper">
+      <div class="search-input">
+        <div class="search-icon"></div>
+        <input type="text" id="searchInput" placeholder="ابحث عن منتج..." />
+      </div>
+    </div>
+
+    <div class="store-banner" id="bannerSlider"></div>
+
+    <div class="breadcrumb" id="breadcrumb" style="display:none;"></div>
+    <section id="catsSection">
+      <button class="mz-back" id="mzBackBtn" onclick="mzToggleList(false)">← العودة إلى الفسيفساء</button>
+      <h3 class="section-title" id="catSectionTitle">تصفح الأقسام</h3>
+      <div id="mosaicHome" style="display:none;">
+        <div class="mz-stage">
+          <div class="mz-wrap">
+            <div class="mz-orbit b"></div><div class="mz-orbit"></div>
+            <div class="mz-grid" id="mzGrid"></div>
+            <div class="mz-ring"></div>
+            <div class="mz-chip"><i></i><span id="mzChip"></span></div>
+          </div>
+          <p class="mz-hint">المس أي مربع لتصفح القسم</p>
+          <button class="mz-link" onclick="mzToggleList(true)">عرض الأقسام كقائمة</button>
+        </div>
+      </div>
+      <div class="categories-grid" id="catsGrid"></div>
+    </section>
+    <section id="prodsSection" style="display:none;">
+      <h3 class="section-title" id="prodSectionTitle">المنتجات</h3>
+      <div class="products-list" id="prodsList"></div>
+      <div id="prodsEmpty" class="text-xs text-muted" style="display:none;margin-top:6px;">لا توجد منتجات في هذا القسم.</div>
+    </section>
+
+  <!-- SITE FOOTER -->
+  <footer class="site-footer">
+    <div class="site-footer-copy">
+      © 2026 <a href="" id="amrDevLink" target="_blank">amr dev</a> &nbsp;·&nbsp; Digital Growth &amp; Store Development
+    </div>
+  </footer>
+
+  </main>
+
+  <nav class="app-footer">
+    <div class="nav-item" id="navSearch"><i data-lucide="search" class="nav-icon-svg"></i><span>بحث</span></div>
+    <div class="nav-item active" id="navHome"><i data-lucide="home" class="nav-icon-svg"></i><span>الرئيسية</span></div>
+    <div class="nav-center" id="navDeposit"><i data-lucide="credit-card" style="width:22px;height:22px;"></i></div>
+    <div class="nav-item" id="navInfo"><i data-lucide="info" class="nav-icon-svg"></i><span>معلومات</span></div>
+    <div class="nav-item" id="navContact"><i data-lucide="message-circle" class="nav-icon-svg"></i><span>تواصل</span></div>
+  </nav>
+</div>
+
+
+<!-- CONTACT MODAL -->
+<div class="modal-backdrop" id="contactModal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <i data-lucide="message-circle" style="width:18px;height:18px;color:var(--accent);"></i>
+        تواصل مع المشرفين
+      </div>
+      <button class="modal-close" data-modal="contactModal">&times;</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">تواصل معنا عبر منصة المفضلة لديك:</p>
+
+    <!-- Telegram -->
+    <a id="contactTelegram" href="#" target="_blank" style="text-decoration:none;">
+      <div class="contact-channel-card" style="background:linear-gradient(135deg,rgba(0,136,204,0.15),rgba(0,136,204,0.05));border-color:rgba(0,136,204,0.3);">
+        <div class="contact-channel-icon" style="background:#0088cc;">
+          <svg viewBox="0 0 24 24" fill="white" width="22" height="22"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.4l-2.94-.918c-.638-.203-.653-.638.136-.943l11.47-4.42c.53-.194.997.13.636.13z"/></svg>
+        </div>
+        <div class="contact-channel-info">
+          <div class="contact-channel-name">Telegram</div>
+          <div class="contact-channel-sub" id="contactTelegramHandle">@username</div>
+        </div>
+        <i data-lucide="external-link" style="width:16px;height:16px;color:var(--text-muted);margin-right:auto;"></i>
+      </div>
+    </a>
+
+    <!-- WhatsApp -->
+    <a id="contactWhatsapp" href="#" target="_blank" style="text-decoration:none;margin-top:10px;display:block;">
+      <div class="contact-channel-card" style="background:linear-gradient(135deg,rgba(37,211,102,0.15),rgba(37,211,102,0.05));border-color:rgba(37,211,102,0.3);">
+        <div class="contact-channel-icon" style="background:#25d366;">
+          <svg viewBox="0 0 24 24" fill="white" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </div>
+        <div class="contact-channel-info">
+          <div class="contact-channel-name">WhatsApp</div>
+          <div class="contact-channel-sub" id="contactWhatsappHandle">+963 ...</div>
+        </div>
+        <i data-lucide="external-link" style="width:16px;height:16px;color:var(--text-muted);margin-right:auto;"></i>
+      </div>
+    </a>
+
+    <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:14px;">
+      أوقات الرد: يومياً من 9 صباحاً حتى 12 منتصف الليل
+    </p>
+  </div>
+</div>
+
+<!-- INFO MODAL -->
+<div class="modal-backdrop" id="infoModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <i data-lucide="info" style="width:18px;height:18px;color:var(--accent);"></i>
+        كيفية استخدام المتجر
+      </div>
+      <button class="modal-close" data-modal="infoModal">&times;</button>
+    </div>
+
+    <div class="info-steps">
+
+      <div class="info-step">
+        <div class="info-step-num">١</div>
+        <div class="info-step-body">
+          <div class="info-step-title">إنشاء حساب</div>
+          <div class="info-step-text">سجّل حسابك بـ اسم المستخدم ورقم هاتفك وكلمة مرور. ستحتاج الحساب لإتمام أي عملية شراء.</div>
+        </div>
+      </div>
+
+      <div class="info-step">
+        <div class="info-step-num">٢</div>
+        <div class="info-step-body">
+          <div class="info-step-title">شحن الرصيد (إيداع)</div>
+          <div class="info-step-text">اضغط على زر 💳 الشحن، اختر وسيلة الدفع (سيرياتيل كاش أو شام كاش)، حوّل المبلغ وارفع صورة التحويل. سيُراجع الطلب ويُضاف رصيدك يدوياً.</div>
+        </div>
+      </div>
+
+      <div class="info-step">
+        <div class="info-step-num">٣</div>
+        <div class="info-step-body">
+          <div class="info-step-title">اختيار المنتج والشراء</div>
+          <div class="info-step-text">تصفح الأقسام، اختر المنتج الذي تريده، وأكّد الشراء. سيُطلب منك إدخال معلومات الحساب الذي تريد الشحن عليه (مثل: ID اللعبة).</div>
+        </div>
+      </div>
+
+      <div class="info-step">
+        <div class="info-step-num">٤</div>
+        <div class="info-step-body">
+          <div class="info-step-title">الرد على الطلبات — يدوي</div>
+          <div class="info-step-text">جميع الطلبات تُنفَّذ يدوياً من قِبل فريقنا. ستصلك إشعار فور اكتمال طلبك أو إلغائه. زمن التنفيذ عادةً خلال ساعات.</div>
+        </div>
+      </div>
+
+      <div class="info-step">
+        <div class="info-step-num">٥</div>
+        <div class="info-step-body">
+          <div class="info-step-title">نظام VIP والخصومات</div>
+          <div class="info-step-text">كلما رقيت في مستوى VIP كلما حصلت على خصم أكبر على جميع المنتجات. تواصل معنا للترقية.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:12px 14px;margin-top:14px;display:flex;gap:10px;align-items:flex-start;">
+      <i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--gold);flex-shrink:0;margin-top:1px;"></i>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">سيُخصم المبلغ عند إنشاء الطلب، ويُعاد تلقائياً إلى رصيدك إذا رفض المشرف الطلب أو ألغاه.</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="modal-backdrop" id="loginModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">تسجيل الدخول</div><button class="modal-close" data-modal="loginModal">&times;</button></div>
+    <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input type="email" class="form-input" id="loginEmail" autocomplete="email" /></div>
+    <div class="form-group"><label class="form-label">كلمة المرور</label><input type="password" class="form-input" id="loginPassword" /></div>
+    <div class="text-xs text-error" id="loginError"></div>
+    <div class="modal-actions"><button class="btn btn-primary" id="btnLoginSubmit">دخول</button></div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div class="modal-backdrop" id="registerModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">إنشاء حساب</div><button class="modal-close" data-modal="registerModal">&times;</button></div>
+    <div class="form-group"><label class="form-label">اسم المستخدم</label><input type="text" class="form-input" id="registerUsername" /></div>
+    <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input type="email" class="form-input" id="registerEmail" autocomplete="email" /></div>
+    <div class="form-group"><label class="form-label">رقم الهاتف</label><input type="tel" class="form-input" id="registerPhone" placeholder="مثال: 0991234567" /></div>
+    <div class="form-group"><label class="form-label">كلمة المرور (8 أحرف كحد أدنى)</label><input type="password" class="form-input" id="registerPassword" autocomplete="new-password" /></div>
+    <div class="text-xs text-error" id="registerError"></div>
+    <div class="modal-actions"><button class="btn btn-primary" id="btnRegisterSubmit">إنشاء</button></div>
+  </div>
+</div>
+
+<!-- PHONE UPDATE (for old accounts) -->
+<div class="modal-backdrop" id="phoneModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📱 أضف رقم هاتفك</div><button class="modal-close" data-modal="phoneModal">&times;</button></div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">نطلب منك إضافة رقم هاتفك لتأمين حسابك وإتمام الطلبات بسهولة.</p>
+    <div class="form-group"><label class="form-label">رقم الهاتف</label><input type="tel" class="form-input" id="phoneUpdateInput" placeholder="مثال: 0991234567" /></div>
+    <div class="text-xs text-error" id="phoneUpdateError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" id="btnSkipPhone">تخطي الآن</button>
+      <button class="btn btn-primary btn-sm" id="btnSavePhone">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPOSIT MULTI-STEP -->
+<div class="modal-backdrop" id="depositModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="depModalTitle">شحن الرصيد</div>
+      <button class="modal-close" data-modal="depositModal">&times;</button>
+    </div>
+    <div class="deposit-step active" id="depStep1">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">اختر وسيلة الدفع:</p>
+      <div class="method-grid" id="depositMethodsGrid"></div>
+      <div id="depositMethodsEmpty" class="text-xs text-muted" hidden>لا توجد طرق دفع متاحة حالياً. يرجى التواصل مع الدعم.</div>
+    </div>
+    <div class="deposit-step" id="depStep2">
+      <button class="dep-back-btn" onclick="goDepStep(1)">← رجوع</button>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">اختر العملة:</p>
+      <div class="currency-btns" id="depositCurrencies"></div>
+    </div>
+    <div class="deposit-step" id="depStep3">
+      <button class="dep-back-btn" id="depBack3">← رجوع</button>
+      <div class="transfer-info-box">
+        <div class="method-badge" id="depMethodBadge"></div>
+        <img id="depQrImg" class="qr-img" src="" alt="QR" style="display:none;" onerror="this.style.display='none'" />
+        <p id="depMethodDescription" class="payment-description"></p>
+        <div id="depInstructions" class="payment-instructions"></div>
+        <div id="depositCustomFields"></div>
+        <div id="depDestinationWrap">
+          <div class="wallet-addr-label">عنوان المحفظة / الرقم</div>
+          <div class="wallet-addr" id="depWalletAddr" onclick="copyWallet()" title="اضغط للنسخ">—</div>
+          <p style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px;">اضغط على العنوان لنسخه</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="depAmountLabel">المبلغ</label>
+        <input type="number" min="1" class="form-input" id="depositAmount" placeholder="أدخل المبلغ..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">صورة إثبات التحويل</label>
+        <input type="file" class="form-file" id="depositImage" accept="image/*" />
+      </div>
+      <div class="text-xs text-muted" style="margin-bottom:8px;">سيتم مراجعة الطلب وإضافة الرصيد بعد الموافقة.</div>
+      <div class="text-xs text-error" id="depositError"></div>
+      <div class="modal-actions"><button class="btn btn-primary" id="btnDepositSubmit">إرسال الطلب</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">تأكيد الشراء</div><button class="modal-close" data-modal="confirmModal">&times;</button></div>
+    <div class="confirm-row" id="confirmRow"></div>
+    <div id="confirmBalRows"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" data-modal="confirmModal">إلغاء</button>
+      <button class="btn btn-primary btn-sm" id="btnConfirmBuy">✅ تأكيد الشراء</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="modal-backdrop" id="historyModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="historyTitle">سجل المشتريات</div><button class="modal-close" data-modal="historyModal">&times;</button></div>
+    <div class="tabs">
+      <div class="tab active" data-ht="orders">الطلبات</div>
+      <div class="tab" data-ht="deposits">الإيداعات</div>
+    </div>
+    <div class="history-list" id="ordersHistory"></div>
+    <div class="history-list" id="depositsHistory" style="display:none;"></div>
+    <div class="text-xs text-muted" id="historyHint" style="margin-top:6px;"></div>
+  </div>
+</div>
+
+<!-- VIP -->
+<div class="modal-backdrop" id="vipModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">👑 نظام VIP</div>
+      <button class="modal-close" data-modal="vipModal">&times;</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">برنامج VIP يمنحك خصومات حصرية على جميع المنتجات!</p>
+    <div class="vip-levels-grid" id="vipLevelsGrid"></div>
+    <div style="padding:10px;background:var(--bg-deep);border-radius:10px;border:1px solid var(--border);margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">مستواك الحالي</div>
+      <div id="vipCurrentLabel" style="font-size:15px;font-weight:700;color:var(--text-primary);">VIP 0</div>
+    </div>
+    <button class="whatsapp-btn" onclick="openWhatsapp()"><i data-lucide="message-circle" style="width:16px;height:16px;vertical-align:middle;margin-left:6px;"></i> تواصل للترقية عبر واتساب</button>
+    <p style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">تواصل مع المشرف لطلب ترقية مستواك</p>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:80px;right:16px;left:16px;margin:auto;max-width:320px;background:#1e293b;border:1px solid rgba(59,130,246,0.3);color:#f1f5f9;border-radius:12px;padding:10px 16px;font-size:13px;font-family:'Tajawal',sans-serif;text-align:center;opacity:0;pointer-events:none;transition:opacity 0.25s;z-index:60;"></div>
+
+<script src="store.js"></script>
+</body>
+</html>

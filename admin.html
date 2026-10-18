@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>لوحة الإدارة</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+    <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+<div id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<!-- LOGIN -->
+<div id="loginView">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="admin-brand-mark">
+        <img id="adminLoginLogo" alt="" />
+        <span id="adminLoginLogoFallback"></span>
+      </div>
+      <div class="login-title"><span id="adminLoginStoreName"></span><small>لوحة الإدارة</small></div>
+    </div>
+    <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input type="email" id="adminEmail" class="form-input" autocomplete="username" /></div>
+    <div class="form-group"><label class="form-label">كلمة المرور</label><input type="password" id="adminPass" class="form-input" /></div>
+    <div class="text-error" id="adminLoginError"></div>
+    <div style="margin-top:14px;"><button class="btn btn-primary" style="width:100%" id="btnAdminLogin">دخول</button></div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminView" style="display:none;">
+  <!-- MOBILE TOP BAR -->
+  <div class="mobile-topbar">
+    <button class="mobile-menu-btn" id="btnMobileMenu"><span></span><span></span><span></span></button>
+    <div class="mobile-topbar-logo">
+      <img id="adminMobileLogo" alt="" />
+      <span id="adminMobileStoreName"></span>
+    </div>
+    <div class="mobile-page-title" id="mobilePageTitle">الإحصائيات</div>
+  </div>
+  <!-- SIDEBAR OVERLAY -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="admin-layout">
+    <div class="sidebar" id="adminSidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">
+          <img id="adminSidebarLogo" alt="" />
+          <span id="adminSidebarLogoFallback"></span>
+        </div>
+        <div class="sidebar-logo-text"><span id="adminSidebarStoreName"></span><small>لوحة الإدارة</small></div>
+      </div>
+      <button class="nav-btn active" data-page="dashboard">📊 الإحصائيات</button>
+      <button class="nav-btn" data-page="categories">📁 الأقسام</button>
+      <button class="nav-btn" data-page="products">🎮 المنتجات</button>
+      <button class="nav-btn" data-page="orders">🛒 الطلبات</button>
+      <button class="nav-btn" data-page="deposits">💳 الإيداعات</button>
+      <button class="nav-btn" data-page="payments">💰 طرق الدفع</button>
+      <button class="nav-btn" data-page="banners">🖼️ البانرات</button>
+      <button class="nav-btn" data-page="users">👥 المستخدمون</button>
+      <button class="nav-btn" data-page="vip">👑 VIP</button>
+      <button class="nav-btn" data-page="mosaic">🧩 الفسيفساء</button>
+      <button class="nav-btn nav-btn-logout" id="btnAdminLogout" style="margin-top:auto;">🚪 تسجيل خروج</button>
+    </div>
+
+    <div class="main-content">
+
+      <!-- DASHBOARD -->
+      <div id="pageDashboard">
+        <div class="page-title">📊 الإحصائيات</div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">المستخدمون</div><div class="stat-value" id="statUsers">0</div></div>
+          <div class="stat-card"><div class="stat-label">المنتجات</div><div class="stat-value" id="statProducts">0</div></div>
+          <div class="stat-card"><div class="stat-label">الأقسام</div><div class="stat-value" id="statCats">0</div></div>
+          <div class="stat-card"><div class="stat-label">الطلبات</div><div class="stat-value" id="statOrders">0</div></div>
+          <div class="stat-card"><div class="stat-label">الطلبات المكتملة</div><div class="stat-value" id="statOrdersDone">0</div></div>
+          <div class="stat-card"><div class="stat-label">إجمالي المبيعات (SYP)</div><div class="stat-value" id="statSales">0 ل.س</div></div>
+          <div class="stat-card"><div class="stat-label">إيداعات معلقة</div><div class="stat-value" id="statDepsPending">0</div></div>
+          <div class="stat-card"><div class="stat-label">أعضاء VIP</div><div class="stat-value" id="statVip">0</div></div>
+        </div>
+      </div>
+
+      <!-- MOSAIC DESIGNER -->
+      <div id="pageMosaic" style="display:none;">
+        <div class="page-title">🧩 تصميم الفسيفساء</div>
+        <div class="mzed-info" id="mzedInfo"></div>
+        <div class="mzed-warn" id="mzedBinWarn" style="display:none;">تعذر الاتصال بقاعدة البيانات.</div>
+        <div class="mzed-bar">
+          <label>عدد المربعات (الألعاب/الأقسام)<input type="number" id="mzedN" class="form-input" min="3" max="23" value="6"></label>
+          <label>دقّة الشبكة<select id="mzedS" class="form-select"><option value="6">6×6 — مربعات كبيرة</option><option value="8">8×8 — متوسطة</option><option value="10">10×10 — دقيقة</option></select></label>
+        </div>
+        <div class="mzed-saved" id="mzedSaved"></div>
+        <div class="mzed-layout">
+          <div class="mzed-stage"><div class="mzed-canvas" id="mzedCanvas"><div class="mzed-cells" id="mzedCells"></div><div class="mzed-tiles" id="mzedTiles"></div></div></div>
+          <div class="mzed-side">
+            <div class="mzed-box">
+              <h4>الحالة</h4>
+              <div class="mzed-stat"><span>المربعات</span><b id="mzedCount">0</b></div>
+              <div class="mzed-stat"><span>خلايا ظاهرة فارغة</span><b id="mzedUnc">0</b></div>
+              <div class="mzed-stat"><span>النتيجة</span><b id="mzedState">—</b></div>
+            </div>
+            <div class="mzed-box">
+              <h4>أدوات</h4>
+              <div class="mzed-tools">
+                <button class="btn btn-outline btn-sm" id="mzedAdd">+ مربع</button>
+                <button class="btn btn-outline btn-sm" id="mzedAuto">⚡ تعبئة تلقائية</button>
+                <button class="btn btn-outline btn-sm" id="mzedUndo">↶ تراجع</button>
+                <button class="btn btn-outline btn-sm" id="mzedClear">🗑 مسح الكل</button>
+                <button class="btn btn-outline btn-sm" id="mzedCirc">◯ معاينة دائرية</button>
+              </div>
+              <p class="mzed-hint" style="margin-top:10px;">الشبكة مربعة بالكامل، بينما يظهر للاعب الجزء الدائري فقط. اسحب المربعات إلى أي خلية، بما فيها الزوايا؛ ويجب تغطية كل خلية يظهر أي جزء منها داخل الدائرة (الخلايا الحمراء فارغة). اسحب الزاوية البيضاء لتغيير الحجم. المربع الأكبر يأخذ القسم الأكثر منتجات تلقائياً، أو ثبّت قسماً بعينه أدناه.</p>
+            </div>
+            <div class="mzed-box" id="mzedSelBox" style="display:none;">
+              <h4>المربع المحدد <span id="mzedSelSize" style="color:var(--muted);font-weight:500"></span></h4>
+              <select class="form-select" id="mzedPin"></select>
+              <p class="mzed-hint" style="margin-top:6px;">اختر قسماً لتثبيته في هذا المربع، أو اتركه «تلقائي».</p>
+            </div>
+            <div class="mzed-box">
+              <div class="mzed-tools">
+                <button class="btn btn-primary" id="mzedSave">💾 حفظ القالب</button>
+                <button class="btn btn-outline" id="mzedDel">إلغاء القالب المخصص</button>
+              </div>
+              <details style="margin-top:12px;"><summary class="mzed-hint" style="cursor:pointer;">نسخ احتياطي (JSON)</summary>
+                <textarea class="mzed-export" id="mzedExport" readonly></textarea>
+                <button class="btn btn-outline btn-sm" id="mzedCopy" style="margin-top:6px;">نسخ</button>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CATEGORIES -->
+      <div id="pageCategories" style="display:none;">
+        <div class="page-title">📁 إدارة الأقسام</div>
+        <div class="section-header">
+          <div class="section-title-sm">شجرة الأقسام</div>
+          <button class="btn btn-primary" id="btnNewCat">+ قسم جديد</button>
+        </div>
+        <div id="catTreeContainer"></div>
+      </div>
+
+      <!-- PRODUCTS -->
+      <div id="pageProducts" style="display:none;">
+        <div class="page-title">🎮 إدارة المنتجات</div>
+        <div class="section-header">
+          <div class="section-title-sm">المنتجات</div>
+          <button class="btn btn-primary" id="btnNewProduct">+ منتج جديد</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>الاسم</th><th>السعر SYP</th><th>السعر USD</th><th>القسم</th><th>حقول</th><th>إجراءات</th></tr></thead>
+            <tbody id="prodsTbody"></tbody>
+          </table>
+        </div>
+        <div class="card-list" id="prodsCardList"></div>
+      </div>
+
+      <!-- ORDERS -->
+      <div id="pageOrders" style="display:none;">
+        <div class="page-title">🛒 إدارة الطلبات</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>المستخدم</th><th>المنتج</th><th>السعر</th><th>الحالة</th><th>معلومات</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
+            <tbody id="ordersTbody"></tbody>
+          </table>
+        </div>
+        <div class="card-list" id="ordersCardList"></div>
+      </div>
+
+      <!-- DEPOSITS -->
+      <div id="pageDeposits" style="display:none;">
+        <div class="page-title">💳 إدارة الإيداعات</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>المستخدم</th><th>المبلغ</th><th>الوسيلة</th><th>الحالة</th><th>الصورة</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
+            <tbody id="depsTbody"></tbody>
+          </table>
+        </div>
+        <div class="card-list" id="depsCardList"></div>
+        <div class="section-title-sm" style="margin:22px 0 10px;">دفتر الحركات المالية</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>المستخدم</th><th>العملية</th><th>قيمة الحركة</th><th>الرصيد بعدها</th><th>السبب</th><th>التاريخ</th></tr></thead>
+            <tbody id="ledgerTbody"></tbody>
+          </table>
+        </div>
+
+        <div class="section-title-sm" style="margin:22px 0 10px;">سجل التدقيق الإداري</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>المشرف</th><th>الحدث</th><th>السجل</th><th>التفاصيل</th><th>التاريخ</th></tr></thead>
+            <tbody id="auditTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="pagePayments" style="display:none;">
+        <div class="page-title">💰 طرق الدفع</div>
+        <div class="section-header">
+          <div class="section-title-sm">الوسائل الظاهرة للعملاء</div>
+          <button class="btn btn-primary" id="btnNewPaymentMethod">+ طريقة دفع</button>
+        </div>
+        <p class="settings-help">يمكن تحديد العملات، بيانات التحويل، صورة الطريقة، والحقول التي يجب على العميل تعبئتها.</p>
+        <div id="paymentMethodsList" class="settings-card-list"></div>
+      </div>
+
+      <div id="pageBanners" style="display:none;">
+        <div class="page-title">🖼️ بانرات المتجر</div>
+        <div class="settings-editor">
+          <h3>إضافة بانر</h3>
+          <label class="form-label" for="bannerImageFile">صورة البانر</label>
+          <input type="file" id="bannerImageFile" class="form-input image-file-input" accept="image/jpeg,image/png,image/webp" />
+          <div class="image-upload-hint">JPG أو PNG أو WebP حتى 5 ميغابايت. تُرفع مباشرة إلى Storage عند الإضافة.</div>
+          <img id="bannerImagePreview" class="banner-preview" alt="معاينة البانر" hidden />
+          <label class="form-label" for="bannerAltText">وصف مختصر للصورة (اختياري)</label>
+          <input type="text" id="bannerAltText" class="form-input" maxlength="160" />
+          <label class="form-label" for="bannerHref">رابط عند الضغط (اختياري)</label>
+          <input type="url" id="bannerHref" class="form-input" placeholder="https://..." />
+          <button type="button" class="btn btn-primary" id="btnAddBanner">رفع وإضافة البانر</button>
+          <div class="text-error" id="bannerError"></div>
+        </div>
+        <div class="section-title-sm settings-list-title">البانرات الحالية</div>
+        <div id="storeBannersList" class="settings-card-list"></div>
+      </div>
+
+      <!-- USERS -->
+      <div id="pageUsers" style="display:none;">
+        <div class="page-title">👥 إدارة المستخدمين</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>اسم المستخدم</th><th>رقم الهاتف</th><th>الرصيد</th><th>تعديل الرصيد</th><th>VIP</th><th>تاريخ الإنشاء</th></tr></thead>
+            <tbody id="usersTbody"></tbody>
+          </table>
+        </div>
+        <div class="card-list" id="usersCardList"></div>
+      </div>
+
+      <!-- VIP MANAGEMENT -->
+      <div id="pageVip" style="display:none;">
+        <div class="page-title">👑 إدارة VIP</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--text);">مستويات VIP الحالية</div>
+          <div id="vipLevelsAdminList"></div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">يمكنك تعديل مستويات VIP من ملف index.html في متغير VIP_LEVELS</div>
+          </div>
+        </div>
+        <div class="section-title-sm" style="margin-bottom:12px;">المستخدمون حسب مستوى VIP</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>اسم المستخدم</th><th>مستوى VIP</th><th>الخصم الحالي</th><th>تغيير المستوى</th></tr></thead>
+            <tbody id="vipUsersTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-backdrop" id="catModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="catModalTitle">قسم جديد</div>
+      <button class="modal-close" data-modal="catModal">&times;</button>
+    </div>
+    <input type="hidden" id="catId" />
+    <div class="form-group"><label class="form-label">اسم القسم</label><input type="text" id="catName" class="form-input" /></div>
+    <div class="form-group">
+      <label class="form-label">القسم الأب (اختياري — اتركه فارغاً للقسم الجذري)</label>
+      <select id="catParent" class="form-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="catImageFile">صورة القسم (اختياري)</label>
+      <input type="file" id="catImageFile" class="form-input image-file-input" accept="image/jpeg,image/png,image/webp" onchange="handleCatalogImageChange('category',this)" />
+      <div class="image-upload-hint">اختر صورة JPG أو PNG أو WebP حتى 5 ميغابايت؛ تُرفع تلقائياً عند حفظ القسم.</div>
+      <img id="catImgPreview" class="img-preview" />
+      <button type="button" class="btn btn-outline btn-sm image-remove-btn" id="catImageRemove" onclick="clearCatalogImage('category')" hidden>إزالة الصورة</button>
+    </div>
+    <div class="text-error" id="catModalError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" data-modal="catModal">إلغاء</button>
+      <button class="btn btn-primary btn-sm" id="btnSaveCat">حفظ القسم</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="productModalTitle">منتج جديد</div>
+      <button class="modal-close" data-modal="productModal">&times;</button>
+    </div>
+    <input type="hidden" id="productId" />
+    <div class="form-group"><label class="form-label">اسم المنتج</label><input type="text" id="productName" class="form-input" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group"><label class="form-label">السعر (ل.س SYP)</label><input type="number" id="productPrice" class="form-input" /></div>
+      <div class="form-group"><label class="form-label">السعر ($ USD)</label><input type="number" step="0.01" id="productPriceUSD" class="form-input" /></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">القسم</label>
+      <select id="productCategory" class="form-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="productImageFile">صورة المنتج (اختياري)</label>
+      <input type="file" id="productImageFile" class="form-input image-file-input" accept="image/jpeg,image/png,image/webp" onchange="handleCatalogImageChange('product',this)" />
+      <div class="image-upload-hint">اختر صورة JPG أو PNG أو WebP حتى 5 ميغابايت؛ تُرفع تلقائياً عند حفظ المنتج.</div>
+      <img id="productImgPreview" class="img-preview product-img-preview" />
+      <button type="button" class="btn btn-outline btn-sm image-remove-btn" id="productImageRemove" onclick="clearCatalogImage('product')" hidden>إزالة الصورة</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+        حقول معلومات الطلب
+        <button type="button" class="btn btn-outline btn-sm" onclick="addInfoField()">+ إضافة حقل</button>
+      </label>
+      <div id="infoFieldsList" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">مثال: اسم الحساب (نص)، رقم ID (رقم)، رابط حساب (رابط)</div>
+    </div>
+    <div class="text-error" id="productModalError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" data-modal="productModal">إلغاء</button>
+      <button class="btn btn-primary btn-sm" id="btnSaveProduct">حفظ المنتج</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT METHOD MODAL -->
+<div class="modal-backdrop" id="paymentMethodModal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="paymentMethodModalTitle">طريقة دفع جديدة</div>
+      <button class="modal-close" data-modal="paymentMethodModal">&times;</button>
+    </div>
+    <input type="hidden" id="paymentMethodId" />
+    <label class="form-label" for="paymentMethodName">اسم طريقة الدفع</label>
+    <input type="text" id="paymentMethodName" class="form-input" maxlength="120" />
+    <label class="form-label" for="paymentMethodDescription">وصف يظهر للعميل</label>
+    <input type="text" id="paymentMethodDescription" class="form-input" maxlength="240" />
+    <label class="form-label" for="paymentMethodCurrencies">العملات المدعومة</label>
+    <div class="setting-options" id="paymentMethodCurrencies">
+      <label><input type="checkbox" value="SYP" /> ليرة سورية SYP</label>
+      <label><input type="checkbox" value="USD" /> دولار أمريكي USD</label>
+    </div>
+    <label class="form-label" for="paymentMethodInstructions">تعليمات التحويل</label>
+    <textarea id="paymentMethodInstructions" class="form-input setting-textarea" maxlength="1000"></textarea>
+    <label class="form-label" for="paymentMethodDestination">رقم المحفظة / الحساب (اختياري)</label>
+    <input type="text" id="paymentMethodDestination" class="form-input" maxlength="200" />
+    <label class="form-label" for="paymentMethodImageFile">صورة أو QR (اختياري)</label>
+    <input type="file" id="paymentMethodImageFile" class="form-input image-file-input" accept="image/jpeg,image/png,image/webp" />
+    <div class="image-upload-hint">تُرفع تلقائياً عند حفظ الطريقة، حتى 5 ميغابايت.</div>
+    <img id="paymentMethodImagePreview" class="img-preview payment-preview" alt="معاينة طريقة الدفع" hidden />
+    <button type="button" class="btn btn-outline btn-sm image-remove-btn" id="paymentMethodImageRemove" hidden>إزالة الصورة</button>
+    <div class="dynamic-fields-heading">
+      <div><strong>معلومات مطلوبة من العميل</strong><small>مثال: رقم الهاتف، رقم المحفظة أو رقم العملية</small></div>
+      <button type="button" class="btn btn-outline btn-sm" id="btnAddPaymentField">+ حقل</button>
+    </div>
+    <div id="paymentFieldsList" class="payment-fields-list"></div>
+    <div class="text-error" id="paymentMethodError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" data-modal="paymentMethodModal">إلغاء</button>
+      <button class="btn btn-primary btn-sm" id="btnSavePaymentMethod">حفظ طريقة الدفع</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT BALANCE MODAL -->
+<div class="modal-backdrop" id="editBalModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">تعديل رصيد المستخدم</div>
+      <button class="modal-close" data-modal="editBalModal">&times;</button>
+    </div>
+    <input type="hidden" id="editBalUid" />
+    <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text);" id="editBalUsername"></div>
+    <div class="form-group">
+      <label class="form-label">الرصيد بالليرة السورية (SYP)</label>
+      <input type="number" min="0" class="form-input" id="editBalSYP" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">الرصيد بالدولار (USD)</label>
+      <input type="number" min="0" step="0.01" class="form-input" id="editBalUSD" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">سبب التعديل (للتدقيق)</label>
+      <input type="text" maxlength="200" class="form-input" id="editBalNote" />
+    </div>
+    <div class="text-error" id="editBalError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" data-modal="editBalModal">إلغاء</button>
+      <button class="btn btn-primary btn-sm" id="btnSaveBal">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
